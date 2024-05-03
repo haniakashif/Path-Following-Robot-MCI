@@ -1,10 +1,10 @@
 #include <Servo.h>
 
   Servo myservo1;
-  Servo myservo2;
+ 
 
-  int servo1_control_pin = 18;  
-  int servo2_control_pin = 19;
+  int servo1_control_pin = 17;  
+
 
   int servo1_pos = 0;
   int servo2_pos = 0;  
@@ -15,32 +15,47 @@
   int in2 = 9;   //IN2 pin (PA3) for Motor A for direction
   int in3 = 10;
   int in4 = 11;
+  
+  int count = 0;
+  int count2 = 0;
 
   int s1 = 2;
   int s2 = 3;
 
-  int echo = 4;
-  int  trig = 5;
+  int echo = 18;
+  int  trig = 19;
 
   int r1;
   int r2;
 
 
-  int r_m_s = 150;
-  int l_m_s = 150;
+  int speed = 150;
+  int motor_left_speed = 250;
+  int motor_right_speed = 250;
 
-  long distance, cm, duration;
-  
-
-  // const int SW2 = 17;   //Pin number for Switch SW2
+  long distance, duration;
+  long cm = 0;
+ 
   bool direction = true;  //Flag for clockwise or anti-clockwise direction
   char blueTooth;
   int state = 0;
+
+  long ultrasonic(){
+      digitalWrite(trig, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trig, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trig, LOW);
+
+      duration = pulseIn(echo, HIGH);   // Reads duration (microseconds) for which Echo pin reads HIGH till wave is reflected
+      cm = microsecondsToCentimeters(duration);
+      return cm;
+  }
   
   void setup() {
 
     myservo1.attach(servo1_control_pin);
-    myservo2.attach(servo2_control_pin);
+
     //Serial initializing for Debugging
     //Specify pinModes for enA, in1 and in2 below
     Serial.begin(9600);
@@ -59,30 +74,31 @@
     digitalWrite(in3, LOW);
     digitalWrite(in4, LOW);
 
-    pinMode(echo, OUTPUT);
+    pinMode(echo, INPUT);
     pinMode(trig, OUTPUT);
+
+    TCCR0B = TCCR0B & B11111000 | B00000010 ;
   
-    //Initialize SW2 Switch as Input
-    // pinMode(SW2, INPUT_PULLUP);  //State for SW2 with pullUp resistor
+
   }
   
   void move_direction(char blueTooth){
-    if (blueTooth == 'A'){
+    if (blueTooth == 'F'){
       state = 1;
     }
     else if (blueTooth == 'B'){
       state = 2;
     }
-    else if (blueTooth == 'C'){
+    else if (blueTooth == 'R'){
       state = 3;
     }
-    else if (blueTooth == 'D'){
+    else if (blueTooth == 'L'){
       state = 4;
     }
-    else if (blueTooth == '0'){
+    else if (blueTooth == 'S'){
       state = 0;
     }
-    else if (blueTooth == 'S'){
+    else if (blueTooth == 'W'){
       state = 5;
     }
     else if (blueTooth == 'M'){
@@ -91,29 +107,18 @@
     else if (blueTooth == 'N'){
       state = 7;
     }
-    else if (blueTooth == 'O'){
+    else if (blueTooth == 'L'){
       state = 8;
     }
-    else if (blueTooth == 'P'){
+    else if (blueTooth == 'R'){
       state = 9;
+    }
+    else if (blueTooth == 'Q'){
+      state = 10;
     }
   }  
 
 
-void Update_Ultra_Sonic()
-{
-  //Setting Trig Signal HIGH for 10us to produce burst of 8 pulses at 40KHz
-  digitalWrite(trig, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-//  digitalRead(anypin/switch) //Use this function to read the state of any Pin/Switch i.e. SW1 and SW2
-
-  duration = pulseIn(echo, HIGH);   // Reads duration (microseconds) for which Echo pin reads HIGH till wave is reflected
-  cm = microsecondsToCentimeters(duration); // convert the time into a distance, refer to function below
-  //Sending through serial port to print on Monitor
-  }
 
 long microsecondsToCentimeters(long microseconds)
 {
@@ -121,9 +126,8 @@ long microsecondsToCentimeters(long microseconds)
   return distance / 2;
 }
 
-
-
   void loop() {
+      // delay(50); 
       r1 = digitalRead(s1);
       r2 = digitalRead(s2);
 
@@ -140,114 +144,162 @@ long microsecondsToCentimeters(long microseconds)
         Serial.println(Rec); //This is to visualise the received character on the serial monitor
         }  
       }
-      // else{
-      //   blueTooth = '0';
-      // }
+
       move_direction(blueTooth);
-      
+
       Serial.print('\n');
-      Update_Ultra_Sonic();
-      if (cm <= 20){
-        state = 0;
-      }
+
 
       Serial.print(state);
-      Serial.print("  dist= ");
-      Serial.print(cm);
+
       if (state == 0){
+        myservo1.write(90);
         digitalWrite(in1, LOW);
         digitalWrite(in2, LOW);
         digitalWrite(in3, LOW);
         digitalWrite(in4, LOW);
       }
       if (state == 1){
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, HIGH);
-        analogWrite(enA, 255); 
-        analogWrite(enB, 255);
+        cm = ultrasonic();
+        Serial.print("dist = ");
+        Serial.print(cm);
+        Serial.print("\n");
+        if (cm <= 15){
+          state = 16;
+        }
+        else if (cm > 15){
+          digitalWrite(in1, HIGH);
+          digitalWrite(in2, LOW);
+          digitalWrite(in3, HIGH);
+          digitalWrite(in4, LOW);
+          analogWrite(enA, 150); 
+          analogWrite(enB, 225);
+        }
+       
+
       }
       else if (state == 2){
         digitalWrite(in1, LOW);
         digitalWrite(in2, HIGH);
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW);
-        analogWrite(enA, 255);
-        analogWrite(enB, 255);
-      }
-      else if (state == 3){
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, LOW);
         digitalWrite(in3, LOW);
         digitalWrite(in4, HIGH);
-        // analogWrite(enA, 255);
-        analogWrite(enB, 150);
+        analogWrite(enA, 150);
+        analogWrite(enB, 225);
       }
-      else if (state == 4){
+      else if (state == 3){
         digitalWrite(in1, HIGH);
         digitalWrite(in2, LOW);
         digitalWrite(in3, LOW);
+        digitalWrite(in4, HIGH);
+
+        analogWrite(enB, 225);
+
+      }
+      else if (state == 4){
+        digitalWrite(in1, LOW);
+        digitalWrite(in2, HIGH);
+        digitalWrite(in3, HIGH);
         digitalWrite(in4, LOW);
-        analogWrite(enA, 150);
-        // analogWrite(enB, 255);
+        analogWrite(enA, 200);
       }
       else if (state == 5){
           Serial.print(r1);
           Serial.print(r2);
+          analogWrite(enA, 150); 
+          analogWrite(enB, 180);
           
           if ((r1 == 0)&&(r2 == 0)){
+            // delay(30);
+              
               digitalWrite(in1, HIGH);
               digitalWrite(in2, LOW);
-              digitalWrite(in3, LOW);
-              digitalWrite(in4, HIGH);
-              analogWrite(enA, 135); 
-              analogWrite(enB, 135);
-            }
-          if ((r1 == 1)&&(r2 == 0)){
+              digitalWrite(in3, HIGH);
+              digitalWrite(in4, LOW);
+
+              delay(100);
 
               digitalWrite(in1, LOW);
               digitalWrite(in2, LOW);
               digitalWrite(in3, LOW);
-              digitalWrite(in4, HIGH);
-              analogWrite(enB, 130);
-
+              digitalWrite(in4, LOW);
+              count  = 0;
+              delay(40);
               
+            }
+          if ((r1 == 1)&&(r2 == 0)){
+              // delay(30);
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, HIGH);
+              digitalWrite(in4, LOW);
 
+              delay(100);
+
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, LOW);
+              digitalWrite(in4, LOW);
+              count = 0;
+              delay(40);
+              
           }
           if ((r1 == 0)&&(r2 == 1)){
+              // delay(30);
               digitalWrite(in1, HIGH);
               digitalWrite(in2, LOW);
               digitalWrite(in3, LOW);
               digitalWrite(in4, LOW);
-              analogWrite(enA, 130);
 
-              
+              delay(100);
+
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, LOW);
+              digitalWrite(in4, LOW);
+              count = 0;
+              delay(50);
           }
           if ((r1 == 1)&&(r2 == 1)){
               digitalWrite(in1, LOW);
               digitalWrite(in2, LOW);
               digitalWrite(in3, LOW);
               digitalWrite(in4, LOW);
-          }           
+              count += 1;
+              Serial.print('\n');
+              Serial.print("count = ");
+              Serial.print(count);
+              Serial.print('\n');
+              if (count >= 50){
+                 state = 15;
+              }
+          }
+          
+          
+                     
         }
         else if (state == 6){
-          servo1_pos += 1;
-          if (servo1_pos >= 180) servo1_pos = 180;
+          
+          myservo1.write(180);
         }
         else if (state == 7){
-          servo1_pos -= 1;
-          if (servo1_pos <= 0) servo1_pos = 0;
+        
+          myservo1.write(0);
         }
-        else if (state == 8){
-          servo2_pos += 1;
-          if (servo2_pos >= 180) servo2_pos = 180;
+        if (state == 15){
+          myservo1.write(180);
+          
         }
-        else if (state == 9){
-          servo2_pos -= 1;
-          if (servo2_pos <= 0) servo2_pos = 0;
+        if (state == 16){
+          count2 += 1;
+          if (count2 == 170){
+            count2 = 0;
+            state = 0;
+          }
+          digitalWrite(in1, LOW);
+          digitalWrite(in2, HIGH);
+          digitalWrite(in3, LOW);
+          digitalWrite(in4, HIGH);
+       
+          analogWrite(enB, 225);
         }
-        myservo1.write(servo1_pos);
-        myservo2.write(servo2_pos);
-        delay(200);
         }
